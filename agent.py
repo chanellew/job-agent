@@ -103,7 +103,7 @@ Candidate context (take it into account in your analysis):
 
 
 # ---------- 4. The agent loop ----------
-def run_agent(request: str):
+def run_agent(request: str, on_tool=print) -> str:
     messages = [{"role": "user", "content": request}]
 
     while True:
@@ -112,18 +112,15 @@ def run_agent(request: str):
         )
         messages.append({"role": "assistant", "content": response.content})
 
-        # Claude is done: no more tool calls
+        # Claude is done: return its final answer
         if response.stop_reason != "tool_use":
-            for block in response.content:
-                if block.type == "text":
-                    print("\n" + block.text)
-            return
+            return "\n".join(b.text for b in response.content if b.type == "text")
 
         # Claude wants to use tools: run them and send back the results
         results = []
         for block in response.content:
             if block.type == "tool_use":
-                print(f"🔧 {block.name}({json.dumps(block.input, ensure_ascii=False)[:80]})")
+                on_tool(f"🔧 {block.name}({json.dumps(block.input, ensure_ascii=False)[:80]})")
                 output = TOOL_FUNCTIONS[block.name](**block.input)
                 results.append({"type": "tool_result", "tool_use_id": block.id, "content": output})
         messages.append({"role": "user", "content": results})
@@ -134,4 +131,4 @@ if __name__ == "__main__":
         request = f"Analyze the job posting at this URL: {sys.argv[1]} and add it to the tracker."
     else:
         request = "Analyze the job posting in offer.txt and add it to the tracker."
-    run_agent(request)
+    print(run_agent(request))
