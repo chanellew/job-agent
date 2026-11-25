@@ -1,6 +1,6 @@
 .env
 .venv/
-cv.md
-offre.txt
+cv_*.md
+offer.txt
 tracker.csv
 __pycache__/
