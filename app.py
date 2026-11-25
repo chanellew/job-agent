@@ -7,7 +7,7 @@ from agent import STATUSES, run_agent
 
 st.set_page_config(page_title="Job Agent", page_icon="🎯", layout="wide")
 st.title("🎯 Job Agent")
-st.caption("Paste a job posting URL, or ask the agent something (e.g. 'Mark YOOBIC as applied', 'Write a LinkedIn message for Thiga').")
+st.caption("Paste a job posting URL, or ask the agent something (e.g. 'Find AI PM roles in London', 'Mark YOOBIC as applied', 'Write a cover letter for Thiga').")
 
 user_input = st.text_input("URL or request")
 

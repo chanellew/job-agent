@@ -190,6 +190,14 @@ TOOLS = [
             "required": ["company", "status"],
         },
     },
+    # Server tool: the web search runs on Anthropic's side, we don't implement it ($10 / 1,000 searches)
+    {
+        "type": "web_search_20250305",
+        "name": "web_search",
+        "max_uses": 5,  # max searches per request, to keep costs under control
+        # read_url can't read these sites (login wall / JavaScript), so don't bother finding postings there
+        "blocked_domains": ["linkedin.com", "indeed.com", "glassdoor.com"],
+    },
     {
         "name": "save_draft",
         "description": "Saves a drafted message or cover letter so the user can copy it later.",
@@ -256,6 +264,18 @@ If the user asks for a message or cover letter for a posting:
    - Is it about them at least as much as about her (not a string of "je... je... je...")?
 5. Save it with save_draft (if it is refused, fix the issue and try again), then show it to the user.
 
+If the user asks you to find job postings (e.g. "Find AI PM roles in London"):
+1. Call read_tracker first, so you skip postings that are already saved.
+2. Use web_search to find individual, currently open postings that match the request and her context.
+   Prefer pages that can be read directly: company career pages and job boards such as
+   jobs.lever.co, boards.greenhouse.io, jobs.ashbyhq.com, apply.workable.com, jobs.smartrecruiters.com,
+   welcometothejungle.com. Ignore listing pages, aggregators and postings that look closed or old.
+3. Pick at most 5 promising postings (fewer if the user asks), then for each one: read it with
+   read_url, analyze it against the right CV, and save it to the tracker, exactly as for a single posting.
+   If a page can't be read, skip it and say so.
+4. End with a short ranked recap: role, company, location, score, verdict (best first),
+   plus the postings you skipped and why.
+
 Answer in English, except drafts, which follow the posting's language.
 
 Candidate context (take it into account in your analysis):
@@ -274,7 +294,16 @@ def run_agent(request: str, on_tool=print) -> str:
         response = client.messages.create(
             model=MODEL, max_tokens=4000, system=SYSTEM, tools=TOOLS, messages=messages
         )
+        # Blocks must be sent back exactly as received (web search results are encrypted)
         messages.append({"role": "assistant", "content": response.content})
+
+        for block in response.content:
+            if block.type == "server_tool_use":  # a web search Anthropic ran for us
+                on_tool(f"🔎 web_search({json.dumps(block.input, ensure_ascii=False)[:80]})")
+
+        # Long server-side work (e.g. several searches): the API pauses, we just call it again
+        if response.stop_reason == "pause_turn":
+            continue
 
         # Claude is done: return its final answer
         if response.stop_reason != "tool_use":
