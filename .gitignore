@@ -4,3 +4,5 @@ cv_*.md
 offer.txt
 tracker.csv
 __pycache__/
+drafts/
+about_me.md
