@@ -1,0 +1,6 @@
+.env
+.venv/
+cv.md
+offre.txt
+tracker.csv
+__pycache__/
